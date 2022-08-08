@@ -1,40 +1,32 @@
 node{
-     
-    stage('SCM Checkout'){
-        git url: 'https://github.com/MithunTechnologiesDevOps/java-web-app-docker.git',branch: 'master'
+    
+    stage("Git Clone"){
+        
+        git url: 'https://github.com/shanker1407/java-web-app-docker.git', branch: 'master'
     }
     
     stage(" Maven Clean Package"){
-      def mavenHome =  tool name: "Maven-3.5.6", type: "maven"
-      def mavenCMD = "${mavenHome}/bin/mvn"
-      sh "${mavenCMD} clean package"
-      
-    } 
-    
+        def mavenHome =  tool name: "Maven", type: "maven"
+        sh "${mavenHome}/bin/mvn clean package"
+        
+    }
     
     stage('Build Docker Image'){
-        sh 'docker build -t dockerhandson/java-web-app .'
+        sh 'docker build -t udaykarthick/java-web-app .'
+    
     }
     
-    stage('Push Docker Image'){
-        withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
-          sh "docker login -u dockerhandson -p ${Docker_Hub_Pwd}"
+    stage("Docker Login And Push"){
+        withCredentials([string(credentialsId: 'DockerHubPwd', variable: 'DockerHubPwd')]) {
+            sh "docker login -u udaykarthick -p ${DockerHubPwd}"
         }
-        sh 'docker push dockerhandson/java-web-app'
-     }
-     
-      stage('Run Docker Image In Dev Server'){
-        
-        def dockerRun = ' docker run  -d -p 8080:8080 --name java-web-app dockerhandson/java-web-app'
-         
-         sshagent(['DOCKER_SERVER']) {
-          sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.20.72 docker stop java-web-app || true'
-          sh 'ssh  ubuntu@172.31.20.72 docker rm java-web-app || true'
-          sh 'ssh  ubuntu@172.31.20.72 docker rmi -f  $(docker images -q) || true'
-          sh "ssh  ubuntu@172.31.20.72 ${dockerRun}"
-       }
-       
+        sh 'docker push udaykarthick/java-web-app:latest'
     }
-     
-     
+    stage('Run Docker Image In Devployment Server'){
+        
+        sshagent(['Docker_Dev_Server_SSH']) {
+            sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.5.111 docker rm -f java-web-app || true'
+            sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.5.111 docker run  -d -p 8080:8080 --name java-web-app udaykarthick/java-web-app:latest'  
+        }
+    }
 }
